@@ -72,7 +72,7 @@ unsigned WINAPI SendThread(void* Argument)
 		cin.getline(SendBuffer, sizeof(SendBuffer));
 
 		ChatPacket Data;
-		Data.UserID = "junios";
+		Data.UserID = "minji";
 		Data.Message = SendBuffer;
 		Data.Gold = 1000;
 		std::string JSONString = Data.ToString();
@@ -115,7 +115,7 @@ int main()
 	SOCKADDR_IN ServerSockAddr;
 	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
 	ServerSockAddr.sin_family = AF_INET;
-	ServerSockAddr.sin_addr.s_addr = inet_addr("192.168.0.95");
+	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	ServerSockAddr.sin_port = htons(35000);
 
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
