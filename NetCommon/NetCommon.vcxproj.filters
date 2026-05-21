@@ -42,6 +42,12 @@
     <ClInclude Include="SC_Destroy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CS_Move.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SC_Move.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NetCommon.cpp">
@@ -69,6 +75,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SC_Destroy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CS_Move.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SC_Move.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -137,17 +137,20 @@
   <ItemGroup>
     <ClInclude Include="ChatPacket.h" />
     <ClInclude Include="CS_Login.h" />
+    <ClInclude Include="CS_Move.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="NetUtil.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SC_Destroy.h" />
     <ClInclude Include="SC_Login.h" />
+    <ClInclude Include="SC_Move.h" />
     <ClInclude Include="SC_Spawn.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ChatPacket.cpp" />
     <ClCompile Include="CS_Login.cpp" />
+    <ClCompile Include="CS_Move.cpp" />
     <ClCompile Include="NetCommon.cpp" />
     <ClCompile Include="NetUtil.cpp" />
     <ClCompile Include="Packet.cpp" />
@@ -159,6 +162,7 @@
     </ClCompile>
     <ClCompile Include="SC_Destroy.cpp" />
     <ClCompile Include="SC_Login.cpp" />
+    <ClCompile Include="SC_Move.cpp" />
     <ClCompile Include="SC_Spawn.cpp" />
   </ItemGroup>
   <ItemGroup>
