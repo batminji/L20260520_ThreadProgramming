@@ -1,20 +1,30 @@
 #include "pch.h"
 #include "SessionManager.h"
+#include <algorithm>
 
 void SessionManager::Add(Session InSession)
 {
+	SessionList.push_back(InSession);
 }
 
-void SessionManager::Delete(Session InSesstion)
+void SessionManager::Delete(Session InSession)
 {
+	SessionList.erase(std::find(SessionList.begin(), SessionList.end(), InSession));
 }
 
-Session& SessionManager::GetSession(int Index)
+Session* SessionManager::GetSession(int Index)
 {
-	// TODO: insert return statement here
+	return &SessionList[Index];
 }
 
-Session& SessionManager::GetSession(const SOCKET& InSocket)
+Session* SessionManager::GetSession(const SOCKET& InSocket)
 {
-	// TODO: insert return statement here
+	for (auto It = SessionList.begin(); It != SessionList.end(); ++It)
+	{
+		if ((*It).ClientSocket == InSocket)
+		{
+			return &(*It);
+		}
+	}
+	return nullptr;
 }
