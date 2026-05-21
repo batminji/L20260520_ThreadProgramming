@@ -87,7 +87,7 @@ int main()
 
 					//header
 					unsigned short PacketSize = 0;
-					int RecvBytes = recv(ReadSockets.fd_array[i], (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
+					int RecvBytes = RecvAll(ReadSockets.fd_array[i], (char*)&PacketSize, sizeof(PacketSize));
 					if (RecvBytes <= 0)
 					{
 						cout << "header recv fail " << endl;
@@ -99,7 +99,7 @@ int main()
 
 					memset(Buffer, 0, sizeof(Buffer));
 					//data JSON
-					RecvBytes = recv(ReadSockets.fd_array[i], Buffer, PacketSize, MSG_WAITALL);
+					RecvBytes = RecvAll(ReadSockets.fd_array[i], Buffer, PacketSize);
 					if (RecvBytes <= 0)
 					{
 						cout << "data recv fail " << endl;

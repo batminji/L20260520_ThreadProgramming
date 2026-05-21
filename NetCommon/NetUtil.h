@@ -35,6 +35,10 @@ struct Header
 
 #pragma pack(pop)
 
-extern int SendAll(SOCKET ReceiverSocket, const char* Data, int Size);
+const unsigned short HeaderSize = sizeof(Header);
+
+extern int RecvAll(SOCKET ReceiverSocket, char* OutData, int Size);
+
+extern int SendAll(SOCKET ReceiverSocket, const char* InData, int Size);
 
 extern void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets);
