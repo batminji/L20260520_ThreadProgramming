@@ -122,6 +122,15 @@ int main()
 
 	cout << "client connect" << endl;
 
+	Header LoginHeader;
+	CS_Login LoginData;
+	LoginData.UserID = "minji";
+	LoginData.HashKey = "1aeffasdefdsj";
+
+	LoginHeader.MakeHeader(static_cast<unsigned short>(LoginData.ToString().length()), EPacketType::CS_Login);
+	SendAll(ServerSocket, (char*)&LoginHeader, HeaderSize);
+	SendAll(ServerSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
+
 	HANDLE ThreadHandles[2] = { 0, };
 
 	//nonblocking, asynchrous

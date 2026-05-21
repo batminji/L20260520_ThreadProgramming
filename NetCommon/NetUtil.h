@@ -9,6 +9,8 @@
 #include "SC_Move.h"
 #include "SC_Spawn.h"
 
+#include "SessionManager.h"
+
 enum class EPacketType : unsigned short
 {
 	// Client To Server
@@ -31,6 +33,18 @@ struct Header
 {
 	unsigned short PacketSize;
 	unsigned short PacketType;
+
+	void MakeHeader(int InPackerSize, EPacketType InPacketType)
+	{
+		PacketSize = htons(InPackerSize);
+		PacketType = htons(static_cast<unsigned short>(InPacketType));
+	}
+
+	void NetworkToHost()
+	{
+		PacketSize = ntohs(PacketSize);
+		PacketType = ntohs(PacketType);
+	}
 };
 
 #pragma pack(pop)

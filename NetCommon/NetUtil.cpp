@@ -38,4 +38,3 @@ void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
 	FD_CLR(DisconnectedSocket, &Sockets);
 	closesocket(ClosedSocket);
 }
-

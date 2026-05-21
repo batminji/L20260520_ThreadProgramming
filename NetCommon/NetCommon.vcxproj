@@ -146,6 +146,7 @@
     <ClInclude Include="SC_Login.h" />
     <ClInclude Include="SC_Move.h" />
     <ClInclude Include="SC_Spawn.h" />
+    <ClInclude Include="SessionManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ChatPacket.cpp" />
@@ -164,6 +165,7 @@
     <ClCompile Include="SC_Login.cpp" />
     <ClCompile Include="SC_Move.cpp" />
     <ClCompile Include="SC_Spawn.cpp" />
+    <ClCompile Include="SessionManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
