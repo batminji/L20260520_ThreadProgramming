@@ -28,3 +28,8 @@ Session* SessionManager::GetSession(const SOCKET& InSocket)
 	}
 	return nullptr;
 }
+
+Session* SessionManager::GetSession(const Session& InSession)
+{
+	return &(*(std::find(SessionList.begin(), SessionList.end(), InSession)));
+}

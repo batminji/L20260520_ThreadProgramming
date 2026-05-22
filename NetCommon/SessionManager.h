@@ -10,6 +10,8 @@ struct Session
 	int X;
 	int Y;
 
+	char Shape = ' ';
+
 	bool operator==(const Session& RHS)
 	{
 		return this->ClientSocket == RHS.ClientSocket;
@@ -24,6 +26,7 @@ public:
 
 	Session* GetSession(int Index);
 	Session* GetSession(const SOCKET& InSocket);
+	Session* GetSession(const Session& InSession);
 
 	std::vector<Session> SessionList;
 };

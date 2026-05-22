@@ -5,6 +5,7 @@
 #include <winsock2.h>
 #include <iostream>
 
+#include "SessionManager.h"
 
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "NetCommon")
@@ -13,14 +14,44 @@ using namespace std;
 
 char Buffer[1024] = { 0, };
 
+SessionManager MySessionManager;
+
 void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 {
-	switch ((EPacketType)InHeader.PacketType)
+	switch ((EPacketType)(InHeader.PacketType))
 	{
 	case EPacketType::CS_Login:
 		CS_Login LoginPacket;
 		LoginPacket.Parse(InBuffer);
-		
+		// 접속한 유저가 정확한 사람인지 확인
+		// AGameModeBade::PreLogin();
+
+		Session InSession;
+		InSession.ClientSocket = ProcessSocket;
+		InSession.UserID = LoginPacket.UserID;
+		InSession.X = rand() % 25 + 1;
+		InSession.Y = rand() % 25 + 1;
+		InSession.Shape = 65 + (rand() % 26);
+		MySessionManager.Add(InSession);
+
+		// 확인 패킷
+		//header
+		Header DataHeader;
+		SC_Login LoginData;
+		LoginData.Message = "Walcome";
+		DataHeader.MakeHeader((int)LoginData.ToString().length(), EPacketType::SC_Login);
+		int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
+		if (SentBytes <= 0)
+		{
+			cout << "header send fail." << endl;
+		}
+
+		//Data
+		SentBytes = SendAll(ProcessSocket, (char*)&LoginData, (int)LoginData.ToString().length());
+		if (SentBytes <= 0)
+		{
+			cout << "Data send fail." << endl;
+		}
 		break;
 	case EPacketType::CS_Move:
 		break;
