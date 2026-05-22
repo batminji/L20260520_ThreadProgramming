@@ -14,6 +14,7 @@
 #include <process.h>
 #include <conio.h>
 #include <mutex>
+#include <queue>
 
 #include "SDL.h"
 #include "SDL_main.h"
@@ -33,11 +34,10 @@ bool IsRenderThreadRunning = true;
 
 SessionManager MySessionManager;
 SOCKET MyClientID;
-int ClientDirection = ' ';
-HANDLE KeyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 SDL_Renderer* Renderer;
 
 std::mutex SessionLock;
+std::queue<char> KeyBuffer;
 
 void SDLRender(SDL_Renderer* Renderer, int InColorR, int InColorG, int InColorB, int InX, int InY);
 void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader);
@@ -93,25 +93,28 @@ int SDL_main(int argc, char* argv[])
 		SDL_PollEvent(&Event);	
 		if (Event.type == SDL_KEYDOWN)
 		{
+			if (State[SDL_SCANCODE_ESCAPE])
+			{
+				IsSendThreadRunning = false;
+				IsRecvThreadRunning = false;
+				IsRenderThreadRunning = false;
+				break;
+			}
 			if (State[SDL_SCANCODE_W])
 			{
-				ClientDirection = 'w';
-				SetEvent(KeyEvent);
+				KeyBuffer.push('w');
 			}
 			if (State[SDL_SCANCODE_S])
 			{
-				ClientDirection = 's';
-				SetEvent(KeyEvent);
+				KeyBuffer.push('s');
 			}
 			if (State[SDL_SCANCODE_A])
 			{
-				ClientDirection = 'a';
-				SetEvent(KeyEvent);
+				KeyBuffer.push('a');
 			}
 			if (State[SDL_SCANCODE_D])
 			{
-				ClientDirection = 'd';
-				SetEvent(KeyEvent);
+				KeyBuffer.push('d');
 			}
 		}
 	}
@@ -259,24 +262,26 @@ unsigned WINAPI SendThread(void* Argument)
 
 	while (IsSendThreadRunning)
 	{
-		WaitForSingleObject(KeyEvent, INFINITE);
-
-		Header DataHeader;
-		CS_Move MoveData;
-		MoveData.ClientSocket = MyClientID;
-		MoveData.Direction = ClientDirection;
-		DataHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::CS_Move);
-		int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
-		if (SentBytes <= 0)
+		if (!KeyBuffer.empty())
 		{
-			cout << "header send fail." << endl;
-		}
+			Header DataHeader;
+			CS_Move MoveData;
+			MoveData.ClientSocket = MyClientID;
+			MoveData.Direction = KeyBuffer.front();
+			KeyBuffer.pop();
+			DataHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::CS_Move);
+			int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
+			if (SentBytes <= 0)
+			{
+				cout << "header send fail." << endl;
+			}
 
-		//Data
-		SentBytes = SendAll(ServerSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
-		if (SentBytes <= 0)
-		{
-			cout << "Data send fail." << endl;
+			//Data
+			SentBytes = SendAll(ServerSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
+			if (SentBytes <= 0)
+			{
+				cout << "Data send fail." << endl;
+			}
 		}
 	}
 
