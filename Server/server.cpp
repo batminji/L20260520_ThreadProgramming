@@ -16,140 +16,15 @@ char Buffer[1024] = { 0, };
 
 SessionManager MySessionManager;
 
-void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
-{
-	switch ((EPacketType)(InHeader.PacketType))
-	{
-	case EPacketType::CS_Login:
-	{
-		CS_Login LoginPacket;
-		LoginPacket.Parse(InBuffer);
-		// 접속한 유저가 정확한 사람인지 확인
-		// AGameModeBade::PreLogin();
+void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets);
 
-		Session InSession;
-		InSession.ClientSocket = ProcessSocket;
-		InSession.UserID = LoginPacket.UserID;
-		InSession.X = rand() % 25 + 1;
-		InSession.Y = rand() % 25 + 1;
-		InSession.Shape = 65 + (rand() % 26);
-		MySessionManager.Add(InSession);
-
-		// 확인 패킷
-		//header
-		Header DataHeader;
-		SC_Login LoginData;
-		LoginData.ClientSocket = ProcessSocket;
-		LoginData.Message = "Welcome";
-		DataHeader.MakeHeader((int)LoginData.ToString().length(), EPacketType::SC_Login);
-		int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
-		if (SentBytes <= 0)
-		{
-			cout << "header send fail." << endl;
-		}
-
-		//Data
-		SentBytes = SendAll(ProcessSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
-		if (SentBytes <= 0)
-		{
-			cout << "Data send fail." << endl;
-		}
-
-		// 접속한 모든 유저에게 신규 유저 정보 send
-		for (auto Player : MySessionManager.SessionList)
-		{
-			SC_Spawn SpawnData;
-			SpawnData.ClientSocket = Player.ClientSocket;
-			SpawnData.Shape = Player.Shape;
-			SpawnData.X = Player.X;
-			SpawnData.Y = Player.Y;
-
-			Header SpawnHeader;
-			SpawnHeader.MakeHeader((int)SpawnData.ToString().length(), EPacketType::SC_Spawn);
-
-			for (auto Receiver : MySessionManager.SessionList)
-			{
-				SentBytes = SendAll(Receiver.ClientSocket, (char*)&SpawnHeader, HeaderSize);
-				if (SentBytes <= 0)
-				{
-					cout << "header send fail." << endl;
-				}
-
-				SentBytes = SendAll(Receiver.ClientSocket, SpawnData.ToString().c_str(), (int)SpawnData.ToString().length());
-				if (SentBytes <= 0)
-				{
-					cout << "Data send fail." << endl;
-				}
-			}
-		}
-	}
-		break;
-	case EPacketType::CS_Move:
-	{
-		CS_Move MovePacket;
-		MovePacket.Parse(InBuffer);
-
-		Session* FindSession = MySessionManager.GetSession(MovePacket.ClientSocket);
-		switch (MovePacket.Direction)
-		{
-		case 'W':
-		case 'w':
-		{
-			FindSession->Y--;
-		}
-		case 'S':
-		case 's':
-		{
-			FindSession->Y++;
-		}
-		case 'A':
-		case 'a':
-		{
-			FindSession->X--;
-		}
-		case 'D':
-		case 'd':
-		{
-			FindSession->X++;
-		}
-		break;
-		}
-		// 모든 유저에게 Move Packet Send
-		SC_Move MoveData;
-		MoveData.ClientSocket = FindSession->ClientSocket;;
-		MoveData.X = FindSession->X;
-		MoveData.Y = FindSession->Y;
-
-		Header MoveHeader;
-		MoveHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::SC_Move);
-		int SentBytes = 0;
-		for (auto Player : MySessionManager.SessionList)
-		{
-			SentBytes = SendAll(Player.ClientSocket, (char*)&MoveHeader, HeaderSize);
-			if (SentBytes <= 0)
-			{
-				cout << "header send fail." << endl;
-			}
-
-			SentBytes = SendAll(Player.ClientSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
-			if (SentBytes <= 0)
-			{
-				cout << "Data send fail." << endl;
-			}
-		}
-	}
-		break;
-	default:
-	{
-
-	}
-		break;
-	}
-}
+void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader);
 
 //blocking, synchrous, multiplexing(polling)
 int main()
 {
+	srand((unsigned int)time(nullptr));
+
 	cout << "server start" << endl;
 
 	WSAData wsaData;
@@ -258,4 +133,175 @@ int main()
 	WSACleanup();
 
 	return 0;
+}
+
+void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
+{
+	SOCKADDR_IN ClosedSockAddr;
+	memset(&ClosedSockAddr, 0, sizeof(ClosedSockAddr));
+	int ClosedSockAddrLength = sizeof(ClosedSockAddr);
+
+	SOCKET ClosedSocket = DisconnectedSocket;
+
+	getpeername(ClosedSocket, (SOCKADDR*)&ClosedSockAddr, &ClosedSockAddrLength);
+
+	FD_CLR(DisconnectedSocket, Sockets);
+	closesocket(ClosedSocket);
+
+	Session* FindSession = MySessionManager.GetSession(ClosedSocket);
+
+	SC_Destroy DestroyData;
+	DestroyData.ClientSocket = FindSession->ClientSocket;
+
+	MySessionManager.Delete(*FindSession);
+
+	// 모든 유저에게 Destory 패킷 전송
+	Header DestroyHeader;
+	DestroyHeader.MakeHeader((int)DestroyData.ToString().length(), EPacketType::SC_Destroy);
+	int SentBytes = 0;
+	for (auto Player : MySessionManager.SessionList)
+	{
+		SentBytes = SendAll(Player.ClientSocket, (char*)&DestroyHeader, HeaderSize);
+		if (SentBytes <= 0)
+		{
+			cout << "header send fail." << endl;
+		}
+
+		SentBytes = SendAll(Player.ClientSocket, DestroyData.ToString().c_str(), (int)DestroyData.ToString().length());
+		if (SentBytes <= 0)
+		{
+			cout << "Data send fail." << endl;
+		}
+	}
+}
+
+void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
+{
+	switch ((EPacketType)(InHeader.PacketType))
+	{
+	case EPacketType::CS_Login:
+	{
+		CS_Login LoginPacket;
+		LoginPacket.Parse(InBuffer);
+		// 접속한 유저가 정확한 사람인지 확인
+		// AGameModeBade::PreLogin();
+
+		Session InSession;
+		InSession.ClientSocket = ProcessSocket;
+		InSession.UserID = LoginPacket.UserID;
+		InSession.X = rand() % 25 + 1;
+		InSession.Y = rand() % 25 + 1;
+		InSession.Shape = 65 + (rand() % 26);
+		MySessionManager.Add(InSession);
+
+		// 확인 패킷
+		//header
+		Header DataHeader;
+		SC_Login LoginData;
+		LoginData.ClientSocket = ProcessSocket;
+		LoginData.Message = "Welcome";
+		DataHeader.MakeHeader((int)LoginData.ToString().length(), EPacketType::SC_Login);
+		int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
+		if (SentBytes <= 0)
+		{
+			cout << "header send fail." << endl;
+		}
+
+		//Data
+		SentBytes = SendAll(ProcessSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
+		if (SentBytes <= 0)
+		{
+			cout << "Data send fail." << endl;
+		}
+
+		// 접속한 모든 유저에게 신규 유저 정보 send
+		for (auto Player : MySessionManager.SessionList)
+		{
+			SC_Spawn SpawnData;
+			SpawnData.ClientSocket = Player.ClientSocket;
+			SpawnData.Shape = Player.Shape;
+			SpawnData.X = Player.X;
+			SpawnData.Y = Player.Y;
+
+			Header SpawnHeader;
+			SpawnHeader.MakeHeader((int)SpawnData.ToString().length(), EPacketType::SC_Spawn);
+
+			for (auto Receiver : MySessionManager.SessionList)
+			{
+				SentBytes = SendAll(Receiver.ClientSocket, (char*)&SpawnHeader, HeaderSize);
+				if (SentBytes <= 0)
+				{
+					cout << "header send fail." << endl;
+				}
+
+				SentBytes = SendAll(Receiver.ClientSocket, SpawnData.ToString().c_str(), (int)SpawnData.ToString().length());
+				if (SentBytes <= 0)
+				{
+					cout << "Data send fail." << endl;
+				}
+			}
+		}
+	}
+	break;
+	case EPacketType::CS_Move:
+	{
+		CS_Move MovePacket;
+		MovePacket.Parse(InBuffer);
+
+		Session* FindSession = MySessionManager.GetSession(MovePacket.ClientSocket);
+		switch (MovePacket.Direction)
+		{
+		case 'W':
+		case 'w':
+		{
+			FindSession->Y--;
+		}
+		case 'S':
+		case 's':
+		{
+			FindSession->Y++;
+		}
+		case 'A':
+		case 'a':
+		{
+			FindSession->X--;
+		}
+		case 'D':
+		case 'd':
+		{
+			FindSession->X++;
+		}
+		break;
+		}
+		// 모든 유저에게 Move Packet Send
+		SC_Move MoveData;
+		MoveData.ClientSocket = FindSession->ClientSocket;;
+		MoveData.X = FindSession->X;
+		MoveData.Y = FindSession->Y;
+
+		Header MoveHeader;
+		MoveHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::SC_Move);
+		int SentBytes = 0;
+		for (auto Player : MySessionManager.SessionList)
+		{
+			SentBytes = SendAll(Player.ClientSocket, (char*)&MoveHeader, HeaderSize);
+			if (SentBytes <= 0)
+			{
+				cout << "header send fail." << endl;
+			}
+
+			SentBytes = SendAll(Player.ClientSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
+			if (SentBytes <= 0)
+			{
+				cout << "Data send fail." << endl;
+			}
+		}
+	}
+	break;
+	default:
+	{
+
+	}
+	break;
+	}
 }

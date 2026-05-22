@@ -70,6 +70,18 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		std::cout << MovePacket.ToString() << std::endl;
 	}
 	break;
+	case EPacketType::SC_Destroy:
+	{
+		SC_Destroy DestroyPacket;
+		DestroyPacket.Parse(InBuffer);
+
+
+		Session* FindSession = MySessionManager.GetSession(DestroyPacket.ClientSocket);
+
+		std::cout << "Quit : " << FindSession->ClientSocket << std::endl;
+		MySessionManager.Delete(*FindSession);
+	}
+	break;
 	default:
 	{
 
@@ -160,7 +172,7 @@ int main()
 	SOCKADDR_IN ServerSockAddr;
 	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
 	ServerSockAddr.sin_family = AF_INET;
-	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	ServerSockAddr.sin_addr.s_addr = inet_addr("192.168.0.95");
 	ServerSockAddr.sin_port = htons(35000);
 
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
