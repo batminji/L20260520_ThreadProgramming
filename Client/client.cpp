@@ -239,22 +239,22 @@ int main(int argc, char* argv[])
 		{
 			if (Event.type == SDL_KEYDOWN)
 			{
-				if (State[SDL_SCANCODE_UP] || State[SDL_SCANCODE_W])
+				if (State[SDL_SCANCODE_W])
 				{
 					ClientDirection = 'w';
 					SetEvent(KeyEvent);
 				}
-				if (State[SDL_SCANCODE_DOWN] || State[SDL_SCANCODE_S])
+				if (State[SDL_SCANCODE_S])
 				{
 					ClientDirection = 's';
 					SetEvent(KeyEvent);
 				}
-				if (State[SDL_SCANCODE_LEFT] || State[SDL_SCANCODE_A])
+				if (State[SDL_SCANCODE_A])
 				{
 					ClientDirection = 'a';
 					SetEvent(KeyEvent);
 				}
-				if (State[SDL_SCANCODE_RIGHT] || State[SDL_SCANCODE_D])
+				if (State[SDL_SCANCODE_D])
 				{
 					ClientDirection = 'd';
 					SetEvent(KeyEvent);
