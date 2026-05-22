@@ -89,7 +89,54 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		CS_Move MovePacket;
 		MovePacket.Parse(InBuffer);
 
+		Session* FindSession = MySessionManager.GetSession(MovePacket.ClientSocket);
+		switch (MovePacket.Direction)
+		{
+		case 'W':
+		case 'w':
+		{
+			FindSession->Y--;
+		}
+		case 'S':
+		case 's':
+		{
+			FindSession->Y++;
+		}
+		case 'A':
+		case 'a':
+		{
+			FindSession->X--;
+		}
+		case 'D':
+		case 'd':
+		{
+			FindSession->X++;
+		}
+		break;
+		}
+		// 모든 유저에게 Move Packet Send
+		SC_Move MoveData;
+		MoveData.ClientSocket = FindSession->ClientSocket;;
+		MoveData.X = FindSession->X;
+		MoveData.Y = FindSession->Y;
 
+		Header MoveHeader;
+		MoveHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::SC_Move);
+		int SentBytes = 0;
+		for (auto Player : MySessionManager.SessionList)
+		{
+			SentBytes = SendAll(Player.ClientSocket, (char*)&MoveHeader, HeaderSize);
+			if (SentBytes <= 0)
+			{
+				cout << "header send fail." << endl;
+			}
+
+			SentBytes = SendAll(Player.ClientSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
+			if (SentBytes <= 0)
+			{
+				cout << "Data send fail." << endl;
+			}
+		}
 	}
 		break;
 	default:
