@@ -8,6 +8,7 @@
 #include <Windows.h>
 #include <iostream>
 #include <process.h>
+#include <conio.h>
 
 
 
@@ -24,6 +25,9 @@ char RecvBuffer[1024] = { 0, };
 bool IsRecvThreadRunning = true;
 bool IsSendThreadRunning = true;
 
+SessionManager MySessionManager;
+SOCKET MyClientID;
+
 void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 {
 	switch ((EPacketType)(InHeader.PacketType))
@@ -34,6 +38,8 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		LoginPacket.Parse(InBuffer);
 
 		std::cout << LoginPacket.ToString() << std::endl;
+
+		MyClientID = LoginPacket.ClientSocket;
 	}
 		break;
 	case EPacketType::SC_Spawn:
@@ -42,6 +48,14 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		SpawnPacket.Parse(InBuffer);
 
 		std::cout << SpawnPacket.ToString() << std::endl;
+
+		Session InSession;
+		InSession.ClientSocket = SpawnPacket.ClientSocket;
+		InSession.Shape = SpawnPacket.Shape;
+		InSession.X = SpawnPacket.X;
+		InSession.Y = SpawnPacket.Y;
+
+		MySessionManager.Add(InSession);
 	}
 	break;
 	default:
@@ -91,33 +105,30 @@ unsigned WINAPI SendThread(void* Argument)
 
 	while (IsSendThreadRunning)
 	{
-		cin.getline(SendBuffer, sizeof(SendBuffer));
+		int KeyCode = _getch();
 
-		//ChatPacket Data;
-		//Data.UserID = "minji";
-		//Data.Message = SendBuffer;
-		//Data.Gold = 1000;
-		//std::string JSONString = Data.ToString();
+		if (!(KeyCode == 'w' || KeyCode == 'W' || KeyCode == 'a' || KeyCode == 'A' || KeyCode == 's' || KeyCode == 'S' || KeyCode == 'd' || KeyCode == 'D'))
+		{
+			continue;
+		}
 
-		//unsigned short PacketSize = (unsigned short)JSONString.length();
-		//PacketSize = htons(PacketSize);
+		Header DataHeader;
+		CS_Move MoveData;
+		MoveData.ClientSocket = MyClientID;
+		MoveData.Direction = KeyCode;
+		DataHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::CS_Move);
+		int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
+		if (SentBytes <= 0)
+		{
+			cout << "header send fail." << endl;
+		}
 
-		////header
-		//int SentBytes = SendAll(ServerSocket, (char*)&PacketSize, 2);
-		//if (SentBytes <= 0)
-		//{
-		//	cout << "header send fail." << endl;
-		//	break;
-		//}
-
-		////Data
-		//SentBytes = SendAll(ServerSocket, JSONString.c_str(), ntohs(PacketSize));
-		//if (SentBytes <= 0)
-		//{
-		//	cout << "data send fail." << endl;
-		//	break;
-		//}
-
+		//Data
+		SentBytes = SendAll(ServerSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
+		if (SentBytes <= 0)
+		{
+			cout << "Data send fail." << endl;
+		}
 	}
 
 	return 0;

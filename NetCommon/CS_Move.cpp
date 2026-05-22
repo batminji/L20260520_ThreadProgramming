@@ -6,7 +6,7 @@ void CS_Move::Parse(std::string InString)
     JSONDocument.Parse(InString.c_str());
 
     ClientSocket = JSONDocument["ClientSocket"].GetInt();
-    Direction = JSONDocument["Direction"].GetString();
+    Direction = JSONDocument["Direction"].GetInt();
 }
 
 std::string CS_Move::ToString()

@@ -39,6 +39,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		//header
 		Header DataHeader;
 		SC_Login LoginData;
+		LoginData.ClientSocket = ProcessSocket;
 		LoginData.Message = "Welcome";
 		DataHeader.MakeHeader((int)LoginData.ToString().length(), EPacketType::SC_Login);
 		int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
@@ -85,6 +86,9 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		break;
 	case EPacketType::CS_Move:
 	{
+		CS_Move MovePacket;
+		MovePacket.Parse(InBuffer);
+
 
 	}
 		break;
