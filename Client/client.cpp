@@ -24,38 +24,52 @@ char RecvBuffer[1024] = { 0, };
 bool IsRecvThreadRunning = true;
 bool IsSendThreadRunning = true;
 
+void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
+{
+	switch ((EPacketType)(InHeader.PacketType))
+	{
+	case EPacketType::SC_Login:
+	{
+		SC_Login LoginPacket;
+		LoginPacket.Parse(InBuffer);
+
+		std::cout << LoginPacket.ToString() << std::endl;
+	}
+		break;
+	default:
+	{
+
+	}
+		break;
+	}
+
+}
+
 unsigned WINAPI RecvThread(void* Argument)
 {
 	SOCKET ServerSocket = *(SOCKET*)Argument;
 
 	while (IsRecvThreadRunning)
 	{
-		unsigned short PacketSize = 0;
-
-		//header
-		int RecvBytes = recv(ServerSocket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
+		Header DataHeader;
+		int RecvBytes = RecvAll(ServerSocket, (char*)&DataHeader, HeaderSize);
 		if (RecvBytes <= 0)
 		{
-			cout << "recv fail " << endl;
+			cout << "header recv fail " << endl;
 			break;
 		}
-
-		PacketSize = ntohs(PacketSize);
+		DataHeader.NetworkToHost();
 
 		memset(RecvBuffer, 0, sizeof(RecvBuffer));
 		//data JSON
-		RecvBytes = recv(ServerSocket, RecvBuffer, PacketSize, MSG_WAITALL);
+		RecvBytes = RecvAll(ServerSocket, RecvBuffer, DataHeader.PacketSize);
 		if (RecvBytes <= 0)
 		{
 			cout << "recv fail " << endl;
 			break;
 		}
 
-		ChatPacket Data;
-
-		Data.Parse(RecvBuffer);
-
-		cout << Data.UserID << " : " << Data.Message << " " << Data.Gold << endl;
+		ProcessPacket(ServerSocket, RecvBuffer, DataHeader);
 	}
 
 
@@ -71,30 +85,30 @@ unsigned WINAPI SendThread(void* Argument)
 	{
 		cin.getline(SendBuffer, sizeof(SendBuffer));
 
-		ChatPacket Data;
-		Data.UserID = "minji";
-		Data.Message = SendBuffer;
-		Data.Gold = 1000;
-		std::string JSONString = Data.ToString();
+		//ChatPacket Data;
+		//Data.UserID = "minji";
+		//Data.Message = SendBuffer;
+		//Data.Gold = 1000;
+		//std::string JSONString = Data.ToString();
 
-		unsigned short PacketSize = (unsigned short)JSONString.length();
-		PacketSize = htons(PacketSize);
+		//unsigned short PacketSize = (unsigned short)JSONString.length();
+		//PacketSize = htons(PacketSize);
 
-		//header
-		int SentBytes = SendAll(ServerSocket, (char*)&PacketSize, 2);
-		if (SentBytes <= 0)
-		{
-			cout << "header send fail." << endl;
-			break;
-		}
+		////header
+		//int SentBytes = SendAll(ServerSocket, (char*)&PacketSize, 2);
+		//if (SentBytes <= 0)
+		//{
+		//	cout << "header send fail." << endl;
+		//	break;
+		//}
 
-		//Data
-		SentBytes = SendAll(ServerSocket, JSONString.c_str(), ntohs(PacketSize));
-		if (SentBytes <= 0)
-		{
-			cout << "data send fail." << endl;
-			break;
-		}
+		////Data
+		//SentBytes = SendAll(ServerSocket, JSONString.c_str(), ntohs(PacketSize));
+		//if (SentBytes <= 0)
+		//{
+		//	cout << "data send fail." << endl;
+		//	break;
+		//}
 
 	}
 

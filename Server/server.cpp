@@ -21,6 +21,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 	switch ((EPacketType)(InHeader.PacketType))
 	{
 	case EPacketType::CS_Login:
+	{
 		CS_Login LoginPacket;
 		LoginPacket.Parse(InBuffer);
 		// 접속한 유저가 정확한 사람인지 확인
@@ -38,7 +39,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		//header
 		Header DataHeader;
 		SC_Login LoginData;
-		LoginData.Message = "Walcome";
+		LoginData.Message = "Welcome";
 		DataHeader.MakeHeader((int)LoginData.ToString().length(), EPacketType::SC_Login);
 		int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
 		if (SentBytes <= 0)
@@ -47,33 +48,24 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		}
 
 		//Data
-		SentBytes = SendAll(ProcessSocket, (char*)&LoginData, (int)LoginData.ToString().length());
+		SentBytes = SendAll(ProcessSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
 		if (SentBytes <= 0)
 		{
 			cout << "Data send fail." << endl;
 		}
+	}
 		break;
 	case EPacketType::CS_Move:
+	{
+
+	}
 		break;
 	default:
+	{
+
+	}
 		break;
 	}
-
-	// //header
-	// int SentBytes = SendAll(ReadSockets.fd_array[Index], (char*)&PacketSize, 2);
-	// if (SentBytes <= 0)
-	// {
-	// 	cout << "header send fail." << endl;
-	// 	DisconnectSocket(ReadSockets.fd_array[Index], &ReadSockets);
-	// }
-	// 
-	// //Data
-	// SentBytes = SendAll(ReadSockets.fd_array[Index], Buffer, ntohs(PacketSize));
-	// if (SentBytes <= 0)
-	// {
-	// 	cout << "Data send fail." << endl;
-	// 	DisconnectSocket(ReadSockets.fd_array[Index], &ReadSockets);
-	// }
 }
 
 //blocking, synchrous, multiplexing(polling)
