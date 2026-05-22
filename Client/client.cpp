@@ -262,26 +262,29 @@ unsigned WINAPI SendThread(void* Argument)
 
 	while (IsSendThreadRunning)
 	{
-		if (!KeyBuffer.empty())
+		if (KeyBuffer.empty())
 		{
-			Header DataHeader;
-			CS_Move MoveData;
-			MoveData.ClientSocket = MyClientID;
-			MoveData.Direction = KeyBuffer.front();
-			KeyBuffer.pop();
-			DataHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::CS_Move);
-			int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
-			if (SentBytes <= 0)
-			{
-				cout << "header send fail." << endl;
-			}
+			YieldProcessor();
+			continue;
+		}
 
-			//Data
-			SentBytes = SendAll(ServerSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
-			if (SentBytes <= 0)
-			{
-				cout << "Data send fail." << endl;
-			}
+		Header DataHeader;
+		CS_Move MoveData;
+		MoveData.ClientSocket = MyClientID;
+		MoveData.Direction = KeyBuffer.front();
+		KeyBuffer.pop();
+		DataHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::CS_Move);
+		int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
+		if (SentBytes <= 0)
+		{
+			cout << "header send fail." << endl;
+		}
+
+		//Data
+		SentBytes = SendAll(ServerSocket, MoveData.ToString().c_str(), (int)MoveData.ToString().length());
+		if (SentBytes <= 0)
+		{
+			cout << "Data send fail." << endl;
 		}
 	}
 

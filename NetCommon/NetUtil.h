@@ -26,7 +26,6 @@ enum class EPacketType : unsigned short
 	ChatPacket,
 	Max
 };
-
 #pragma pack(push, 1)
 
 struct Header
