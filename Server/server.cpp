@@ -256,16 +256,19 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		{
 			FindSession->Y--;
 		}
+		break;
 		case 'S':
 		case 's':
 		{
 			FindSession->Y++;
 		}
+		break;
 		case 'A':
 		case 'a':
 		{
 			FindSession->X--;
 		}
+		break;
 		case 'D':
 		case 'd':
 		{

@@ -28,6 +28,20 @@ bool IsSendThreadRunning = true;
 SessionManager MySessionManager;
 SOCKET MyClientID;
 
+void Render()
+{
+	system("cls");
+	COORD Where;
+
+	for (auto Player : MySessionManager.SessionList)
+	{
+		Where.X = Player.X;
+		Where.Y = Player.Y;
+		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Where);
+		std::cout << (char)Player.Shape << std::endl;
+	}	
+}
+
 void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 {
 	switch ((EPacketType)(InHeader.PacketType))
@@ -37,7 +51,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		SC_Login LoginPacket;
 		LoginPacket.Parse(InBuffer);
 
-		std::cout << LoginPacket.ToString() << std::endl;
+		// std::cout << LoginPacket.ToString() << std::endl;
 
 		MyClientID = LoginPacket.ClientSocket;
 	}
@@ -47,7 +61,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		SC_Spawn SpawnPacket;
 		SpawnPacket.Parse(InBuffer);
 
-		std::cout << SpawnPacket.ToString() << std::endl;
+		// std::cout << SpawnPacket.ToString() << std::endl;
 
 		Session InSession;
 		InSession.ClientSocket = SpawnPacket.ClientSocket;
@@ -56,6 +70,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		InSession.Y = SpawnPacket.Y;
 
 		MySessionManager.Add(InSession);
+		Render();
 	}
 	break;
 	case EPacketType::SC_Move:
@@ -67,7 +82,8 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		FindSession->X = MovePacket.X;
 		FindSession->Y = MovePacket.Y;
 
-		std::cout << MovePacket.ToString() << std::endl;
+		// std::cout << MovePacket.ToString() << std::endl;
+		Render();
 	}
 	break;
 	case EPacketType::SC_Destroy:
@@ -78,8 +94,9 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 
 		Session* FindSession = MySessionManager.GetSession(DestroyPacket.ClientSocket);
 
-		std::cout << "Quit : " << FindSession->ClientSocket << std::endl;
+		// std::cout << "Quit : " << FindSession->ClientSocket << std::endl;
 		MySessionManager.Delete(*FindSession);
+		Render();
 	}
 	break;
 	default:
@@ -172,7 +189,7 @@ int main()
 	SOCKADDR_IN ServerSockAddr;
 	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
 	ServerSockAddr.sin_family = AF_INET;
-	ServerSockAddr.sin_addr.s_addr = inet_addr("192.168.0.95");
+	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	ServerSockAddr.sin_port = htons(35000);
 
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
