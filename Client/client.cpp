@@ -43,24 +43,6 @@ void SDLRender(SDL_Renderer* Renderer, int InColorR, int InColorG, int InColorB,
 	SDL_RenderFillRect(Renderer, &Rect);
 }
 
-void Render()
-{
-	system("cls");
-	SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
-	SDL_RenderClear(Renderer);
-	COORD Where;
-
-	for (auto Player : MySessionManager.SessionList)
-	{
-		Where.X = Player.X;
-		Where.Y = Player.Y;
-		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Where);
-		SDLRender(Renderer, Player.R, Player.G, Player.B, Where.X, Where.Y);
-		SDL_RenderPresent(Renderer);
-		std::cout << (char)Player.Shape << std::endl;
-	}
-}
-
 void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 {
 	switch ((EPacketType)(InHeader.PacketType))
@@ -92,7 +74,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		InSession.B = SpawnPacket.B;	
 
 		MySessionManager.Add(InSession);
-		Render();
+		// Render();
 	}
 	break;
 	case EPacketType::SC_Move:
@@ -105,7 +87,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		FindSession->Y = MovePacket.Y;
 
 		// std::cout << MovePacket.ToString() << std::endl;
-		Render();
+		// Render();
 	}
 	break;
 	case EPacketType::SC_Destroy:
@@ -118,7 +100,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 
 		// std::cout << "Quit : " << FindSession->ClientSocket << std::endl;
 		MySessionManager.Delete(*FindSession);
-		Render();
+		// Render();
 	}
 	break;
 	default:
@@ -192,7 +174,30 @@ unsigned WINAPI SendThread(void* Argument)
 	return 0;
 }
 
-int main(int argc, char* argv[])
+unsigned WINAPI RenderThread(void* Argument)
+{
+	while (true)
+	{
+		system("cls");
+		SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
+		SDL_RenderClear(Renderer);
+		COORD Where;
+
+		for (auto Player : MySessionManager.SessionList)
+		{
+			Where.X = Player.X;
+			Where.Y = Player.Y;
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Where);
+			SDLRender(Renderer, Player.R, Player.G, Player.B, Where.X, Where.Y);
+			std::cout << (char)Player.Shape << std::endl;
+		}
+		SDL_RenderPresent(Renderer);
+	}
+
+	return 0;
+}
+
+int SDL_main(int argc, char* argv[])
 {
 	// SDL Init
 	SDL_Init(SDL_INIT_EVERYTHING);
@@ -227,11 +232,12 @@ int main(int argc, char* argv[])
 	SendAll(ServerSocket, (char*)&LoginHeader, HeaderSize);
 	SendAll(ServerSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
 
-	HANDLE ThreadHandles[2] = { 0, };
+	HANDLE ThreadHandles[3] = { 0, };
 
 	//nonblocking, asynchrous
 	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
 	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
+	ThreadHandles[2] = (HANDLE)_beginthreadex(0, 0, RenderThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
 
 	while (true)
 	{
@@ -264,7 +270,7 @@ int main(int argc, char* argv[])
 	}
 
 	//blocking
-	WaitForMultipleObjects(2, ThreadHandles, FALSE, INFINITE);
+	WaitForMultipleObjects(3, ThreadHandles, FALSE, INFINITE);
 
 	closesocket(ServerSocket);
 
@@ -280,6 +286,7 @@ int main(int argc, char* argv[])
 
 	CloseHandle(ThreadHandles[0]);
 	CloseHandle(ThreadHandles[1]);
+	CloseHandle(ThreadHandles[2]);
 
 	WSACleanup();
 
