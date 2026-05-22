@@ -15,10 +15,11 @@
 #include <conio.h>
 
 #include "SDL.h"
+#include "SDL_main.h"
 
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "NetCommon")
-
+#pragma comment(lib, "SDL2main")
 
 using namespace std;
 
@@ -199,16 +200,16 @@ unsigned WINAPI RenderThread(void* Argument)
 
 int SDL_main(int argc, char* argv[])
 {
+	// cout << "client" << endl;
+	WSAData wsaData;
+
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+
 	// SDL Init
 	SDL_Init(SDL_INIT_EVERYTHING);
 	SDL_Window* Window = SDL_CreateWindow("SDL Engine", WINDOWX, WINDOWY, WINDOWW, WINDOWH, SDL_WINDOW_SHOWN);
 	Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
 	const Uint8* State = SDL_GetKeyboardState(NULL);
-
-	// cout << "client" << endl;
-	WSAData wsaData;
-
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
 	SOCKET ServerSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
