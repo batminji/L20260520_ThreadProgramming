@@ -13,6 +13,7 @@
 #include <iostream>
 #include <process.h>
 #include <conio.h>
+#include <mutex>
 
 #include "SDL.h"
 #include "SDL_main.h"
@@ -28,18 +29,119 @@ char RecvBuffer[1024] = { 0, };
 
 bool IsRecvThreadRunning = true;
 bool IsSendThreadRunning = true;
+bool IsRenderThreadRunning = true;
 
 SessionManager MySessionManager;
 SOCKET MyClientID;
 int ClientDirection = ' ';
 HANDLE KeyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 SDL_Renderer* Renderer;
-SDL_Event Event;
+
+std::mutex SessionLock;
+
+void SDLRender(SDL_Renderer* Renderer, int InColorR, int InColorG, int InColorB, int InX, int InY);
+void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader);
+unsigned WINAPI RecvThread(void* Argument);
+unsigned WINAPI SendThread(void* Argument);
+unsigned WINAPI RenderThread(void* Argument);
+
+int SDL_main(int argc, char* argv[])
+{
+	// cout << "client" << endl;
+	WSAData wsaData;
+
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+	// SDL Init
+	SDL_Init(SDL_INIT_EVERYTHING);
+	SDL_Window* Window = SDL_CreateWindow("SDL Engine", WINDOWX, WINDOWY, WINDOWW, WINDOWH, SDL_WINDOW_SHOWN);
+	Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+	const Uint8* State = SDL_GetKeyboardState(NULL);
+	SDL_Event Event;
+
+	SOCKET ServerSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	SOCKADDR_IN ServerSockAddr;
+	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
+	ServerSockAddr.sin_family = AF_INET;
+	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	// ServerSockAddr.sin_addr.s_addr = inet_addr("192.168.0.95");
+	ServerSockAddr.sin_port = htons(35000);
+
+	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
+
+	cout << "client connect" << endl;
+
+	Header LoginHeader;
+	CS_Login LoginData;
+	LoginData.UserID = "minji";
+	LoginData.HashKey = "1aeffasdefdsj";
+
+	LoginHeader.MakeHeader(static_cast<unsigned short>(LoginData.ToString().length()), EPacketType::CS_Login);
+	SendAll(ServerSocket, (char*)&LoginHeader, HeaderSize);
+	SendAll(ServerSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
+
+	HANDLE ThreadHandles[3] = { 0, };
+
+	//nonblocking, asynchrous
+	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
+	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
+	ThreadHandles[2] = (HANDLE)_beginthreadex(0, 0, RenderThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
+
+	while (true)
+	{
+		SDL_PollEvent(&Event);	
+		if (Event.type == SDL_KEYDOWN)
+		{
+			if (State[SDL_SCANCODE_W])
+			{
+				ClientDirection = 'w';
+				SetEvent(KeyEvent);
+			}
+			if (State[SDL_SCANCODE_S])
+			{
+				ClientDirection = 's';
+				SetEvent(KeyEvent);
+			}
+			if (State[SDL_SCANCODE_A])
+			{
+				ClientDirection = 'a';
+				SetEvent(KeyEvent);
+			}
+			if (State[SDL_SCANCODE_D])
+			{
+				ClientDirection = 'd';
+				SetEvent(KeyEvent);
+			}
+		}
+	}
+
+	//blocking
+	WaitForMultipleObjects(3, ThreadHandles, FALSE, INFINITE);
+
+	closesocket(ServerSocket);
+
+	IsSendThreadRunning = false;
+	IsRecvThreadRunning = false;
+	IsRenderThreadRunning = false;
+
+	SDL_DestroyRenderer(Renderer);
+	SDL_DestroyWindow(Window);
+	SDL_Quit();
+
+	CloseHandle(ThreadHandles[0]);
+	CloseHandle(ThreadHandles[1]);
+	CloseHandle(ThreadHandles[2]);
+
+	WSACleanup();
+
+	return 0;
+}
 
 void SDLRender(SDL_Renderer* Renderer, int InColorR, int InColorG, int InColorB, int InX, int InY)
 {
 	SDL_SetRenderDrawColor(Renderer, InColorR, InColorG, InColorB, 255);
-	
+
 	SDL_Rect Rect = { InX * 10, InY * 10, 30, 30 };
 	SDL_RenderFillRect(Renderer, &Rect);
 }
@@ -57,7 +159,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 
 		MyClientID = LoginPacket.ClientSocket;
 	}
-		break;
+	break;
 	case EPacketType::SC_Spawn:
 	{
 		SC_Spawn SpawnPacket;
@@ -72,9 +174,12 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		InSession.Y = SpawnPacket.Y;
 		InSession.R = SpawnPacket.R;
 		InSession.G = SpawnPacket.G;
-		InSession.B = SpawnPacket.B;	
+		InSession.B = SpawnPacket.B;
 
-		MySessionManager.Add(InSession);
+		{
+			lock_guard<std::mutex> lock(SessionLock);
+			MySessionManager.Add(InSession);
+		}
 		// Render();
 	}
 	break;
@@ -100,7 +205,10 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		Session* FindSession = MySessionManager.GetSession(DestroyPacket.ClientSocket);
 
 		// std::cout << "Quit : " << FindSession->ClientSocket << std::endl;
-		MySessionManager.Delete(*FindSession);
+		{
+			lock_guard<std::mutex> lock(SessionLock);
+			MySessionManager.Delete(*FindSession);
+		}
 		// Render();
 	}
 	break;
@@ -108,7 +216,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 	{
 
 	}
-		break;
+	break;
 	}
 
 }
@@ -177,119 +285,26 @@ unsigned WINAPI SendThread(void* Argument)
 
 unsigned WINAPI RenderThread(void* Argument)
 {
-	while (true)
+	while (IsRenderThreadRunning)
 	{
 		system("cls");
 		SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
 		SDL_RenderClear(Renderer);
 		COORD Where;
 
-		for (auto Player : MySessionManager.SessionList)
 		{
-			Where.X = Player.X;
-			Where.Y = Player.Y;
-			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Where);
-			SDLRender(Renderer, Player.R, Player.G, Player.B, Where.X, Where.Y);
-			std::cout << (char)Player.Shape << std::endl;
+			lock_guard<std::mutex> lock(SessionLock);
+			for (auto Player : MySessionManager.SessionList)
+			{
+				Where.X = Player.X;
+				Where.Y = Player.Y;
+				SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Where);
+				SDLRender(Renderer, Player.R, Player.G, Player.B, Where.X, Where.Y);
+				std::cout << (char)Player.Shape << std::endl;
+			}
 		}
 		SDL_RenderPresent(Renderer);
 	}
-
-	return 0;
-}
-
-int SDL_main(int argc, char* argv[])
-{
-	// cout << "client" << endl;
-	WSAData wsaData;
-
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
-
-	// SDL Init
-	SDL_Init(SDL_INIT_EVERYTHING);
-	SDL_Window* Window = SDL_CreateWindow("SDL Engine", WINDOWX, WINDOWY, WINDOWW, WINDOWH, SDL_WINDOW_SHOWN);
-	Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
-	const Uint8* State = SDL_GetKeyboardState(NULL);
-
-	SOCKET ServerSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	SOCKADDR_IN ServerSockAddr;
-	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
-	ServerSockAddr.sin_family = AF_INET;
-	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	// ServerSockAddr.sin_addr.s_addr = inet_addr("192.168.0.95");
-	ServerSockAddr.sin_port = htons(35000);
-
-	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
-
-	cout << "client connect" << endl;
-
-	Header LoginHeader;
-	CS_Login LoginData;
-	LoginData.UserID = "minji";
-	LoginData.HashKey = "1aeffasdefdsj";
-
-	LoginHeader.MakeHeader(static_cast<unsigned short>(LoginData.ToString().length()), EPacketType::CS_Login);
-	SendAll(ServerSocket, (char*)&LoginHeader, HeaderSize);
-	SendAll(ServerSocket, LoginData.ToString().c_str(), (int)LoginData.ToString().length());
-
-	HANDLE ThreadHandles[3] = { 0, };
-
-	//nonblocking, asynchrous
-	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
-	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
-	ThreadHandles[2] = (HANDLE)_beginthreadex(0, 0, RenderThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
-
-	while (true)
-	{
-		while (SDL_PollEvent(&Event))
-		{
-			if (Event.type == SDL_KEYDOWN)
-			{
-				if (State[SDL_SCANCODE_W])
-				{
-					ClientDirection = 'w';
-					SetEvent(KeyEvent);
-				}
-				if (State[SDL_SCANCODE_S])
-				{
-					ClientDirection = 's';
-					SetEvent(KeyEvent);
-				}
-				if (State[SDL_SCANCODE_A])
-				{
-					ClientDirection = 'a';
-					SetEvent(KeyEvent);
-				}
-				if (State[SDL_SCANCODE_D])
-				{
-					ClientDirection = 'd';
-					SetEvent(KeyEvent);
-				}
-			}
-		}
-	}
-
-	//blocking
-	WaitForMultipleObjects(3, ThreadHandles, FALSE, INFINITE);
-
-	closesocket(ServerSocket);
-
-	//TerminateThread(ThreadHandles[0], 0);
-	//TerminateThread(ThreadHandles[1], 0);
-	IsSendThreadRunning = false;
-	IsRecvThreadRunning = false;
-
-
-	SDL_DestroyRenderer(Renderer);
-	SDL_DestroyWindow(Window);
-	SDL_Quit();
-
-	CloseHandle(ThreadHandles[0]);
-	CloseHandle(ThreadHandles[1]);
-	CloseHandle(ThreadHandles[2]);
-
-	WSACleanup();
 
 	return 0;
 }
