@@ -4,6 +4,14 @@
 
 void SessionManager::Add(Session InSession)
 {
+	for (auto It = SessionList.begin(); It != SessionList.end(); ++It)
+	{
+		if ((*It).ClientSocket == InSession.ClientSocket)
+		{
+			return;
+		}
+	}
+
 	SessionList.push_back(InSession);
 }
 

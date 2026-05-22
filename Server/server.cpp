@@ -53,6 +53,34 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		{
 			cout << "Data send fail." << endl;
 		}
+
+		// 접속한 모든 유저에게 신규 유저 정보 send
+		for (auto Player : MySessionManager.SessionList)
+		{
+			SC_Spawn SpawnData;
+			SpawnData.ClientSocket = Player.ClientSocket;
+			SpawnData.Shape = Player.Shape;
+			SpawnData.X = Player.X;
+			SpawnData.Y = Player.Y;
+
+			Header SpawnHeader;
+			SpawnHeader.MakeHeader((int)SpawnData.ToString().length(), EPacketType::SC_Spawn);
+
+			for (auto Receiver : MySessionManager.SessionList)
+			{
+				SentBytes = SendAll(Receiver.ClientSocket, (char*)&SpawnHeader, HeaderSize);
+				if (SentBytes <= 0)
+				{
+					cout << "header send fail." << endl;
+				}
+
+				SentBytes = SendAll(Receiver.ClientSocket, SpawnData.ToString().c_str(), (int)SpawnData.ToString().length());
+				if (SentBytes <= 0)
+				{
+					cout << "Data send fail." << endl;
+				}
+			}
+		}
 	}
 		break;
 	case EPacketType::CS_Move:

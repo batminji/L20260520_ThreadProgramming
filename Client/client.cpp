@@ -36,6 +36,14 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		std::cout << LoginPacket.ToString() << std::endl;
 	}
 		break;
+	case EPacketType::SC_Spawn:
+	{
+		SC_Spawn SpawnPacket;
+		SpawnPacket.Parse(InBuffer);
+
+		std::cout << SpawnPacket.ToString() << std::endl;
+	}
+	break;
 	default:
 	{
 

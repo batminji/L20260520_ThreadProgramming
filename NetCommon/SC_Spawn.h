@@ -6,6 +6,7 @@ public:
 	SOCKET ClientSocket;
 	int X;
 	int Y;
+	char Shape;
 
 	void Parse(std::string InString) override;
 	std::string ToString() override;

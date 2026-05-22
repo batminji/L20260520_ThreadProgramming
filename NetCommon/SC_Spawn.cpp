@@ -8,6 +8,7 @@ void SC_Spawn::Parse(std::string InString)
     ClientSocket = JSONDocument["ClientSocket"].GetInt();
     X = JSONDocument["X"].GetInt();
     Y = JSONDocument["Y"].GetInt();
+    Shape = JSONDocument["Shape"].GetInt();
 }
 
 std::string SC_Spawn::ToString()
@@ -16,6 +17,7 @@ std::string SC_Spawn::ToString()
     JSONDocument.AddMember("ClientSocket", ClientSocket, JSONDocument.GetAllocator());
     JSONDocument.AddMember("X", X, JSONDocument.GetAllocator());
     JSONDocument.AddMember("Y", Y, JSONDocument.GetAllocator());
+    JSONDocument.AddMember("Shape", Shape, JSONDocument.GetAllocator());
 
     rapidjson::StringBuffer Buffer;
     rapidjson::Writer<rapidjson::StringBuffer> Writer(Buffer);
