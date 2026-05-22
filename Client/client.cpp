@@ -1,5 +1,9 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
+#define WINDOWX 50
+#define WINDOWY 50
+#define WINDOWW 600
+#define WINDOWH 600
 
 #include "ChatPacket.h"
 #include "NetUtil.h"
@@ -26,10 +30,24 @@ bool IsSendThreadRunning = true;
 
 SessionManager MySessionManager;
 SOCKET MyClientID;
+int ClientDirection = ' ';
+HANDLE KeyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+SDL_Renderer* Renderer;
+SDL_Event Event;
+
+void SDLRender(SDL_Renderer* Renderer, int InColorR, int InColorG, int InColorB, int InX, int InY)
+{
+	SDL_SetRenderDrawColor(Renderer, InColorR, InColorG, InColorB, 255);
+	
+	SDL_Rect Rect = { InX * 10, InY * 10, 30, 30 };
+	SDL_RenderFillRect(Renderer, &Rect);
+}
 
 void Render()
 {
 	system("cls");
+	SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
+	SDL_RenderClear(Renderer);
 	COORD Where;
 
 	for (auto Player : MySessionManager.SessionList)
@@ -37,8 +55,10 @@ void Render()
 		Where.X = Player.X;
 		Where.Y = Player.Y;
 		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Where);
+		SDLRender(Renderer, Player.R, Player.G, Player.B, Where.X, Where.Y);
+		SDL_RenderPresent(Renderer);
 		std::cout << (char)Player.Shape << std::endl;
-	}	
+	}
 }
 
 void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
@@ -67,6 +87,9 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		InSession.Shape = SpawnPacket.Shape;
 		InSession.X = SpawnPacket.X;
 		InSession.Y = SpawnPacket.Y;
+		InSession.R = SpawnPacket.R;
+		InSession.G = SpawnPacket.G;
+		InSession.B = SpawnPacket.B;	
 
 		MySessionManager.Add(InSession);
 		Render();
@@ -145,17 +168,12 @@ unsigned WINAPI SendThread(void* Argument)
 
 	while (IsSendThreadRunning)
 	{
-		int KeyCode = _getch();
-
-		if (!(KeyCode == 'w' || KeyCode == 'W' || KeyCode == 'a' || KeyCode == 'A' || KeyCode == 's' || KeyCode == 'S' || KeyCode == 'd' || KeyCode == 'D'))
-		{
-			continue;
-		}
+		WaitForSingleObject(KeyEvent, INFINITE);
 
 		Header DataHeader;
 		CS_Move MoveData;
 		MoveData.ClientSocket = MyClientID;
-		MoveData.Direction = KeyCode;
+		MoveData.Direction = ClientDirection;
 		DataHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::CS_Move);
 		int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
 		if (SentBytes <= 0)
@@ -176,9 +194,13 @@ unsigned WINAPI SendThread(void* Argument)
 
 int main(int argc, char* argv[])
 {
+	// SDL Init
+	SDL_Init(SDL_INIT_EVERYTHING);
+	SDL_Window* Window = SDL_CreateWindow("SDL Engine", WINDOWX, WINDOWY, WINDOWW, WINDOWH, SDL_WINDOW_SHOWN);
+	Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+	const Uint8* State = SDL_GetKeyboardState(NULL);
+
 	// cout << "client" << endl;
-
-
 	WSAData wsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -210,10 +232,36 @@ int main(int argc, char* argv[])
 	//nonblocking, asynchrous
 	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
 	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
-	//ResumeThread(ThreadHandles[0]);
-	//ResumeThread(ThreadHandles[1]);
-	//SuspendThread(ThreadHandles[0]);
-	//SuspendThread(ThreadHandles[1]);
+
+	while (true)
+	{
+		while (SDL_PollEvent(&Event))
+		{
+			if (Event.type == SDL_KEYDOWN)
+			{
+				if (State[SDL_SCANCODE_UP] || State[SDL_SCANCODE_W])
+				{
+					ClientDirection = 'w';
+					SetEvent(KeyEvent);
+				}
+				if (State[SDL_SCANCODE_DOWN] || State[SDL_SCANCODE_S])
+				{
+					ClientDirection = 's';
+					SetEvent(KeyEvent);
+				}
+				if (State[SDL_SCANCODE_LEFT] || State[SDL_SCANCODE_A])
+				{
+					ClientDirection = 'a';
+					SetEvent(KeyEvent);
+				}
+				if (State[SDL_SCANCODE_RIGHT] || State[SDL_SCANCODE_D])
+				{
+					ClientDirection = 'd';
+					SetEvent(KeyEvent);
+				}
+			}
+		}
+	}
 
 	//blocking
 	WaitForMultipleObjects(2, ThreadHandles, FALSE, INFINITE);
@@ -225,6 +273,10 @@ int main(int argc, char* argv[])
 	IsSendThreadRunning = false;
 	IsRecvThreadRunning = false;
 
+
+	SDL_DestroyRenderer(Renderer);
+	SDL_DestroyWindow(Window);
+	SDL_Quit();
 
 	CloseHandle(ThreadHandles[0]);
 	CloseHandle(ThreadHandles[1]);

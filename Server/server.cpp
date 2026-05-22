@@ -191,6 +191,9 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		InSession.UserID = LoginPacket.UserID;
 		InSession.X = rand() % 25 + 1;
 		InSession.Y = rand() % 25 + 1;
+		InSession.R = rand() % 225;
+		InSession.G = rand() % 255;
+		InSession.B = rand() % 255;
 		InSession.Shape = 65 + (rand() % 26);
 		MySessionManager.Add(InSession);
 
@@ -222,6 +225,9 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 			SpawnData.Shape = Player.Shape;
 			SpawnData.X = Player.X;
 			SpawnData.Y = Player.Y;
+			SpawnData.R = Player.R;
+			SpawnData.G = Player.G;
+			SpawnData.B = Player.B;
 
 			Header SpawnHeader;
 			SpawnHeader.MakeHeader((int)SpawnData.ToString().length(), EPacketType::SC_Spawn);
@@ -278,7 +284,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, Header& InHeader)
 		}
 		// 모든 유저에게 Move Packet Send
 		SC_Move MoveData;
-		MoveData.ClientSocket = FindSession->ClientSocket;;
+		MoveData.ClientSocket = FindSession->ClientSocket;
 		MoveData.X = FindSession->X;
 		MoveData.Y = FindSession->Y;
 

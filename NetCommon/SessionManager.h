@@ -11,6 +11,10 @@ struct Session
 	int X;
 	int Y;
 
+	int R;
+	int G;
+	int B;
+
 	char Shape = ' ';
 
 	bool operator==(const Session& RHS)
